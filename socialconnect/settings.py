@@ -66,14 +66,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "socialconnect.wsgi.application"
 
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "postgres",  # your Supabase database
-        "USER": "postgres",
-        "PASSWORD": os.getenv("SUPABASE_PASSWORD"),
-        "HOST": "db.rwocivhozcmfswyilrwy.supabase.co",
-        "PORT": "5432",
+        "NAME": os.getenv("PGDATABASE", "postgres"),
+        "USER": os.getenv("PGUSER"),
+        "PASSWORD": os.getenv("PGPASSWORD"),
+        "HOST": os.getenv("PGHOST"),
+        "PORT": os.getenv("PGPORT"),
+        "OPTIONS": {"sslmode": "require"},
     }
 }
 
