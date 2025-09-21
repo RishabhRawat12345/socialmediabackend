@@ -67,18 +67,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "socialconnect.wsgi.application"
 
+fallback_url = (
+    f"postgresql://{os.getenv('PGUSER', 'postgres')}:"
+    f"{os.getenv('PGPASSWORD', 'Deanambrose%4012345')}@"
+    f"{os.getenv('PGHOST', 'db.rwocivhozcmfswyilrwy.supabase.co')}:"
+    f"{os.getenv('PGPORT', '5432')}/"
+    f"{os.getenv('PGDATABASE', 'postgres')}?sslmode=require"
+)
+
+# Use DATABASE_URL if available, otherwise fallback
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("PGDATABASE", "postgres"),
-        "USER": os.getenv("PGUSER", "postgres"),
-        "PASSWORD": os.getenv("PGPASSWORD"),  # must match Supabase password
-        "HOST": os.getenv("PGHOST", "db.rwocivhozcmfswyilrwy.supabase.co"),
-        "PORT": os.getenv("PGPORT", "5432"),
-        "OPTIONS": {
-            "sslmode": "require",  # enforce SSL for Supabase
-        },
-    }
+    "default": dj_database_url.parse(
+        os.environ.get("DATABASE_URL", fallback_url),
+        conn_max_age=600,
+        ssl_require=True
+    )
 }
 
 
