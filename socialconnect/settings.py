@@ -71,7 +71,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "postgres",  # your Supabase database
         "USER": "postgres",
-        "PASSWORD": os.getenv("SUPABASE_PASSWORD")
+        "PASSWORD": os.getenv("SUPABASE_PASSWORD"),
         "HOST": "db.rwocivhozcmfswyilrwy.supabase.co",
         "PORT": "5432",
     }
