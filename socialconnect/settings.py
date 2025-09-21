@@ -1,20 +1,15 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from supabase import create_client
 
-# -------------------
-# Basic Settings
-# -------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dummy_secret")
-DEBUG = os.getenv("DEBUG", "True") == "True"
-ALLOWED_HOSTS = ["*"]  # Change in production
+DEBUG = True
+ALLOWED_HOSTS = ["*"]
 
-# -------------------
-# Installed Apps
-# -------------------
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -22,11 +17,23 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'profiles.apps.ProfilesConfig', 
     "rest_framework",
     "corsheaders",
-    "users",   # your app
-    # other apps...
+    "users",
+    'posts',
+    'profile',
+    'followers',
+    'engagement',
+    'feed',
+    'notifications',
+    'admin_api',
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -37,47 +44,63 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
 ]
 
-# -------------------
-# Database (Supabase Postgres)
-# -------------------
+ROOT_URLCONF = "socialconnect.urls"
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = "socialconnect.wsgi.application"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("PGDATABASE", "postgres"),
-        "USER": os.getenv("PGUSER", "postgres"),
-        "PASSWORD": os.getenv("PGPASSWORD"),
-        "HOST": os.getenv("PGHOST", "db.rwocivhozcmfswyilrwy.supabase.co"),
-        "PORT": os.getenv("PGPORT", "5432"),
-        "OPTIONS": {
-            "sslmode": "require",  # must be enabled for Supabase
-        },
+        "NAME": "postgres",  # your Supabase database
+        "USER": "postgres",
+        "PASSWORD": "dean",  # replace with your actual password
+        "HOST": "db.rwocivhozcmfswyilrwy.supabase.co",
+        "PORT": "5432",
     }
 }
 
-# -------------------
-# CORS
-# -------------------
-CORS_ALLOW_ALL_ORIGINS = True  # allow all origins (adjust for production)
 
-# -------------------
-# Authentication
-# -------------------
-AUTH_USER_MODEL = "users.CustomUser"
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
+USE_I18N = True
+USE_TZ = True
+STATIC_URL = "static/"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------- Supabase ----------------
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"]
 }
 
-# -------------------
-# Static & Timezone
-# -------------------
-STATIC_URL = "static/"
-TIME_ZONE = "UTC"
-USE_TZ = True
-USE_I18N = True
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = 'users.CustomUser'
+
+CORS_ALLOW_ALL_ORIGINS = True
