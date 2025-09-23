@@ -20,22 +20,38 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 # ----------------------------
 # REGISTER USER
 # ----------------------------
-class RegisterView(generics.CreateAPIView):
-    serializer_class = RegisterSerializer
+class VerifySupabaseUserView(generics.GenericAPIView):
+    def get(self, request):
+        access_token = request.GET.get("access_token")
+        if not access_token:
+            return Response({"error": "Access token required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                serializer.save()
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user_info = supabase.auth.get_user(access_token)
+            supabase_user = user_info.user
+        except Exception as e:
+            return Response({"error": f"Failed to fetch user from Supabase: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            return Response(
-                {"message": "User registered successfully. Check your email to verify account."},
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not supabase_user:
+            return Response({"error": "Invalid Supabase user"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ✅ Supabase returns confirmed_at
+        is_confirmed = getattr(supabase_user, "email_confirmed_at", None)
+
+        if is_confirmed:
+            user = CustomUser.objects.filter(email=supabase_user.email).first()
+            if not user:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if not user.is_active:
+                user.is_active = True
+                user.save()
+
+            return Response({"message": "User verified successfully"}, status=status.HTTP_200_OK)
+
+        return Response({"message": "User not verified yet"}, status=status.HTTP_200_OK)
+
 
 
 # ----------------------------
