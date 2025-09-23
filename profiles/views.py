@@ -26,3 +26,11 @@ class MyProfileUpdateView(generics.UpdateAPIView):
 
     def get_object(self):
         return self.request.user.profile
+        
+class MyProfileDetailView(generics.RetrieveAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.profile
+
