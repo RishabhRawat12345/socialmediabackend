@@ -57,13 +57,18 @@ class VerifySupabaseUserView(generics.GenericAPIView):
         if not supabase_user:
             return Response({"error": "Invalid Supabase user"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = CustomUser.objects.filter(email=supabase_user.email).first()
-        if not user:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        # Check email confirmation
+        is_confirmed = getattr(supabase_user, 'confirmed_at', None) or getattr(supabase_user, 'email_confirmed', False)
 
-        if supabase_user.confirmed_at:
-            user.is_active = True
-            user.save()
+        if is_confirmed:
+            user = CustomUser.objects.filter(email=supabase_user.email).first()
+            if not user:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if not user.is_active:
+                user.is_active = True
+                user.save()
+
             return Response({"message": "User verified successfully"}, status=status.HTTP_200_OK)
 
         return Response({"message": "User not verified yet"}, status=status.HTTP_200_OK)
