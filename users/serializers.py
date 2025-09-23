@@ -59,7 +59,7 @@ class RegisterSerializer(serializers.Serializer):
             username=validated_data["username"],
             first_name=validated_data["first_name"],
             last_name=validated_data["last_name"],
-            is_active=False
+            is_active=True
         )
         user.set_password(validated_data["password"])  # hash and save
         user.save()
