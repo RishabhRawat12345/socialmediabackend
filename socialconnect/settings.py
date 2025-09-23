@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from supabase import create_client
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,23 +17,22 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'profiles.apps.ProfilesConfig', 
+    "profiles.apps.ProfilesConfig",
     "rest_framework",
     "corsheaders",
     "users",
-    'posts',
-    'profile',
-    'followers',
-    'engagement',
-    'feed',
-    'notifications',
-    'admin_api',
+    "posts",
+    "profile",
+    "followers",
+    "engagement",
+    "feed",
+    "notifications",
+    "admin_api",
 ]
 
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
+    "django.contrib.auth.backends.ModelBackend",
 ]
-
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -45,8 +43,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.common.CommonMiddleware",
 ]
 
 ROOT_URLCONF = "socialconnect.urls"
@@ -68,28 +64,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "socialconnect.wsgi.application"
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv()
-
+# ---------------- Database ----------------
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "HOST": os.getenv("PGHOST"),
-        "PORT": os.getenv("PGPORT"),
-        "USER": os.getenv("PGUSER"),
-        "PASSWORD": os.getenv("PGPASSWORD"),
-        "NAME": os.getenv("PGDATABASE"),
-        "OPTIONS": {
-            "sslmode": os.getenv("PGSSLMODE", "require")
-        },
-    }
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL"),  # set this in Render
+        conn_max_age=600,                   # keep connections alive
+        ssl_require=True                    # Render Postgres requires SSL
+    )
 }
 
-
+# ---------------- Internationalization ----------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
+
+# ---------------- Static Files ----------------
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -97,17 +87,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-
-
-
+# ---------------- DRF ----------------
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"]
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
 }
 
-
-AUTH_USER_MODEL = 'users.CustomUser'
+AUTH_USER_MODEL = "users.CustomUser"
 
 CORS_ALLOW_ALL_ORIGINS = True
