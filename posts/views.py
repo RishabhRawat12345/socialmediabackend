@@ -25,3 +25,12 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.user != instance.author:
             raise PermissionDenied("You can only delete your own post")
         instance.delete()
+
+class MyPostListView(generics.ListAPIView):
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # return only posts created by the logged-in user
+        return Post.objects.filter(author=self.request.user, is_active=True)
+        
