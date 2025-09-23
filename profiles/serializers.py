@@ -29,25 +29,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
-    avatar = validated_data.pop("avatar", None)
+        avatar = validated_data.pop("avatar", None)
 
-    # Update avatar first
-    if avatar:
-        file_bytes = avatar.read()
-        file_name = f"avatars/{instance.user.id}_{avatar.name}"
+        # Update avatar first
+        if avatar:
+            file_bytes = avatar.read()
+            file_name = f"avatars/{instance.user.id}_{avatar.name}"
 
-        # Upload to Supabase Storage — upsert must be string "true"
-        bucket = "avatars"
-        supabase.storage.from_(bucket).upload(file_name, file_bytes, {"upsert": "true"})
+            # Upload to Supabase Storage — upsert must be string "true"
+            bucket = "avatars"
+            supabase.storage.from_(bucket).upload(file_name, file_bytes, {"upsert": "true"})
 
-        # Get public URL
-        public_url = supabase.storage.from_(bucket).get_public_url(file_name)
-        instance.avatar_url = public_url
+            # Get public URL
+            public_url = supabase.storage.from_(bucket).get_public_url(file_name)
+            instance.avatar_url = public_url
 
-    # Update other fields (bio, location, etc.)
-    for attr, value in validated_data.items():
-        setattr(instance, attr, value)
+        # Update other fields (bio, location, etc.)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
 
-    # Save instance
-    instance.save()
-    return instance
+        # Save instance
+        instance.save()
+        return instance
