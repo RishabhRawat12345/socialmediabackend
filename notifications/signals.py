@@ -2,33 +2,32 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from posts.models import Post
 from users.models import CustomUser
-from .models import Notification
+from .models import Notification, Follow
 
-# Only import Comment if it exists
+# Import Comment if exists
 try:
     from posts.models import Comment
 except ImportError:
     Comment = None
 
 # Follow notification
-@receiver(post_save, sender=CustomUser)
+@receiver(post_save, sender=Follow)
 def create_follow_notification(sender, instance, created, **kwargs):
-    if created:
-        # Example: send a welcome notification to new users
+    if created and instance.follower != instance.following:
         Notification.objects.create(
-            recipient=instance,
-            sender=instance,
+            recipient=instance.following,
+            sender=instance.follower,
             notification_type='follow',
-            message=f"Welcome {instance.username}!",
+            message=f"{instance.follower.username} started following you."
         )
 
 # Like notification
 @receiver(post_save, sender=Post)
-def create_like_notification(sender, instance, created, **kwargs):
-    if not created and instance.likes.exists():  # Assuming you have a likes field
+def create_like_notification(sender, instance, **kwargs):
+    if hasattr(instance, 'likes'):  # check if likes field exists
         for user in instance.likes.all():
             if user != instance.author:
-                Notification.objects.create(
+                Notification.objects.get_or_create(
                     recipient=instance.author,
                     sender=user,
                     post=instance,
