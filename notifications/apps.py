@@ -1,3 +1,4 @@
+# notifications/apps.py
 from django.apps import AppConfig
 
 class NotificationsConfig(AppConfig):
@@ -5,4 +6,4 @@ class NotificationsConfig(AppConfig):
     name = 'notifications'
 
     def ready(self):
-        import notifications.signals  # This will now work even if Comment is missing
+        import notifications.signals
