@@ -24,7 +24,10 @@ class PostSerializer(serializers.ModelSerializer):
             'id', 'author', 'content', 'image_url', 'created_at',
             'total_likes', 'total_comments', 'liked', 'comments'
         ]
-
+        
+    def get_total_likes(self, obj):
+        return obj.likes.count()
+        
     def get_liked(self, obj):
         user = self.context.get("request").user
         if user.is_authenticated:
