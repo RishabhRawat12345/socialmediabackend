@@ -36,3 +36,21 @@ class Comment(models.Model):
     def __str__(self):
         return f"{self.author.username} on {self.post.id}"
 
+class Follow(models.Model):
+    follower = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='following_set'  # users this user is following
+    )
+    following = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='followers_set'  # users following this user
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('follower', 'following')  # prevent duplicate follows
+
+    def __str__(self):
+        return f"{self.follower.username} -> {self.following.username}"
