@@ -1,10 +1,33 @@
-from rest_framework import generics, permissions, status, exceptions
+from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from posts.models import Post
 from .models import Like, Comment
-from .serializers import CommentSerializer
+from .serializers import PostSerializer, CommentSerializer
+
+
+# Get all posts with likes & comments
+class PostListView(generics.ListAPIView):
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Post.objects.all().order_by('-created_at')
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+
+# Get details of a single post with likes & comments
+class PostDetailView(generics.RetrieveAPIView):
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Post.objects.all()
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
 
 # Like/Unlike a post
 class LikePostView(APIView):
@@ -27,17 +50,7 @@ class LikePostView(APIView):
         })
 
 
-# Check if user liked post
-class LikeStatusView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, post_id):
-        post = get_object_or_404(Post, id=post_id)
-        liked = Like.objects.filter(user=request.user, post=post).exists()
-        return Response({"liked": liked})
-
-
-# Add comment / Get comments
+# Add/Get comments for a post
 class CommentListCreateView(generics.ListCreateAPIView):
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -48,14 +61,3 @@ class CommentListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         post = get_object_or_404(Post, id=self.kwargs['post_id'])
         serializer.save(author=self.request.user, post=post)
-
-
-# Delete own comment
-class CommentDeleteView(generics.DestroyAPIView):
-    queryset = Comment.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
-
-    def perform_destroy(self, instance):
-        if instance.author != self.request.user:
-            raise exceptions.PermissionDenied("You can only delete your own comments")
-        instance.delete()
