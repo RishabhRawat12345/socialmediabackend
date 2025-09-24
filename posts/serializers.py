@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post
+from .models import Post, Comment
 from .supabase_client import supabase
 import mimetypes
 
@@ -62,3 +62,11 @@ class PostSerializer(serializers.ModelSerializer):
             instance.save()
 
         return instance
+        
+class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.CharField(source='author.username', read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'post', 'author', 'content', 'created_at']
+        read_only_fields = ['id', 'author', 'created_at']
