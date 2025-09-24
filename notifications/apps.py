@@ -5,4 +5,4 @@ class NotificationsConfig(AppConfig):
     name = 'notifications'
 
     def ready(self):
-        import notifications.signals
+        import notifications.signals  # This will now work even if Comment is missing
