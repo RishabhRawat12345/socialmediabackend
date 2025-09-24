@@ -9,8 +9,15 @@ class Notification(models.Model):
         ('comment', 'Comment'),
     ]
 
-    recipient = models.ForeignKey(CustomUser, related_name='notifications', on_delete=models.CASCADE)
-    sender = models.ForeignKey(CustomUser, related_name='sent_notifications', on_delete=models.CASCADE)
+    recipient = models.ForeignKey(
+        CustomUser,
+        related_name='notifications',
+        on_delete=models.CASCADE
+    )
+    sender = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE
+    )
     notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
     post = models.ForeignKey(Post, null=True, blank=True, on_delete=models.CASCADE)
     message = models.CharField(max_length=200)
