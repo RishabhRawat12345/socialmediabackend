@@ -6,20 +6,15 @@ from django.shortcuts import get_object_or_404
 
 from .models import Post, Comment, Like, Notification
 from .serializers import PostSerializer, CommentSerializer, NotificationSerializer
-from .utils import create_notification  # make sure this is correct
+from .utils import create_notification  # ensure this exists
 
 
 # ---------------- Post Views ----------------
 
-class PostCommentListView(generics.ListAPIView):
-    serializer_class = CommentSerializer
+class PostListView(generics.ListCreateAPIView):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        post_id = self.kwargs['post_id']
-        # Only allow comments for active posts
-        post = get_object_or_404(Post, id=post_id, is_active=True)
-        return Comment.objects.filter(post=post).order_by('-created_at')
 
 
 class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -38,12 +33,54 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance.delete()
 
 
+class MyPostListView(generics.ListAPIView):
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Post.objects.filter(author=self.request.user, is_active=True)
+
+
+# ---------------- Comment Views ----------------
+
+class PostCommentListView(generics.ListAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        post_id = self.kwargs['post_id']
+        post = get_object_or_404(Post, id=post_id)
+        return Comment.objects.filter(post=post).order_by('-created_at')
+
+
+class CommentCreateView(generics.CreateAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        post = serializer.validated_data['post']
+        if hasattr(post, 'is_active') and not post.is_active:
+            raise PermissionDenied("Cannot comment on an inactive post.")
+
+        comment = serializer.save(author=self.request.user)
+
+        if comment.post.author != self.request.user:
+            create_notification(
+                sender=self.request.user,
+                recipient=comment.post.author,
+                notification_type='comment',
+                post=comment.post,
+                message=f"{self.request.user.username} commented on your post."
+            )
+
+
 # ---------------- Like Post View ----------------
+
 class LikePostView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, post_id):
-        post = get_object_or_404(Post, id=post_id, is_active=True)  # Active post only
+        post = get_object_or_404(Post, id=post_id)
         user = request.user
 
         like_obj, created = Like.objects.get_or_create(user=user, post=post)
@@ -65,49 +102,8 @@ class LikePostView(APIView):
         return Response({"liked": liked, "likes_count": likes_count})
 
 
-
-# ---------------- Comment Views ----------------
-class CommentCreateView(generics.CreateAPIView):
-    serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def perform_create(self, serializer):
-        post = serializer.validated_data['post']
-        if not post.is_active:
-            raise PermissionDenied("Cannot comment on an inactive post.")
-
-        comment = serializer.save(author=self.request.user)
-
-        if comment.post.author != self.request.user:
-            create_notification(
-                sender=self.request.user,
-                recipient=comment.post.author,
-                notification_type='comment',
-                post=comment.post,
-                message=f"{self.request.user.username} commented on your post."
-            )
-
-
-class PostCommentListView(generics.ListAPIView):
-    serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        post_id = self.kwargs['post_id']
-        post = get_object_or_404(Post, id=post_id)
-        return Comment.objects.filter(post=post).order_by('-created_at')
-
-
-# ---------------- My Posts ----------------
-class MyPostListView(generics.ListAPIView):
-    serializer_class = PostSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return Post.objects.filter(author=self.request.user, is_active=True)
-
-
 # ---------------- Notifications ----------------
+
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -124,7 +120,3 @@ class MarkNotificationReadView(APIView):
         notification.read = True
         notification.save()
         return Response({"status": "Notification marked as read"})
-
-class PostListView(generics.ListCreateAPIView):
-    queryset = Post.objects.all()
-    serializer_class = PostSerializer
