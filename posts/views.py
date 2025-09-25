@@ -4,17 +4,13 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 
-from .models import Post, Comment, Like
-from .serializers import PostSerializer, CommentSerializer
-from notifications.utils import create_notification
-from .utils import create_notification
+from .models import Post, Comment, Like, Notification
+from .serializers import PostSerializer, CommentSerializer, NotificationSerializer
+from .utils import create_notification  # make sure this is correct
 
 
 # ---------------- Post Views ----------------
 class PostListCreateView(generics.ListCreateAPIView):
-    """
-    List all active posts or create a new post
-    """
     queryset = Post.objects.filter(is_active=True)
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -24,9 +20,6 @@ class PostListCreateView(generics.ListCreateAPIView):
 
 
 class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    Retrieve, update, or delete a post
-    """
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -44,25 +37,19 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 # ---------------- Like Post View ----------------
 class LikePostView(APIView):
-    """
-    Toggle like/unlike for a post
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         user = request.user
 
-        # Check if like exists
         like_obj, created = Like.objects.get_or_create(user=user, post=post)
         if not created:
-            # User already liked -> remove like
             like_obj.delete()
             liked = False
         else:
             liked = True
-            # Send notification to post author
-            if post.author != user:  # Avoid notifying self
+            if post.author != user:
                 create_notification(
                     sender=user,
                     recipient=post.author,
@@ -71,23 +58,17 @@ class LikePostView(APIView):
                     message=f"{user.username} liked your post."
                 )
 
-        # Count likes
-        likes_count = post.likes.count()
+        likes_count = post.post_likes.count()  # corrected related_name
         return Response({"liked": liked, "likes_count": likes_count})
 
 
-# ---------------- Comment View ----------------
+# ---------------- Comment Views ----------------
 class CommentCreateView(generics.CreateAPIView):
-    """
-    Create a comment for a post
-    """
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
         comment = serializer.save(author=self.request.user)
-
-        # Notify post author if commenter is not the author
         if comment.post.author != self.request.user:
             create_notification(
                 sender=self.request.user,
@@ -98,11 +79,18 @@ class CommentCreateView(generics.CreateAPIView):
             )
 
 
-# ---------------- My Posts View (optional) ----------------
+class PostCommentListView(generics.ListAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        post_id = self.kwargs['post_id']
+        post = get_object_or_404(Post, id=post_id)
+        return Comment.objects.filter(post=post).order_by('-created_at')
+
+
+# ---------------- My Posts ----------------
 class MyPostListView(generics.ListAPIView):
-    """
-    List all posts created by the logged-in user
-    """
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -110,14 +98,8 @@ class MyPostListView(generics.ListAPIView):
         return Post.objects.filter(author=self.request.user, is_active=True)
 
 
-from .models import Notification
-from .serializers import NotificationSerializer
-
 # ---------------- Notifications ----------------
 class NotificationListView(generics.ListAPIView):
-    """
-    List all notifications for the logged-in user
-    """
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -126,34 +108,10 @@ class NotificationListView(generics.ListAPIView):
 
 
 class MarkNotificationReadView(APIView):
-    """
-    Mark a notification as read
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, notification_id):
-        try:
-            notification = Notification.objects.get(id=notification_id, recipient=request.user)
-            notification.read = True
-            notification.save()
-            return Response({"status": "Notification marked as read"})
-        except Notification.DoesNotExist:
-            return Response({"error": "Notification not found"}, status=404)
-
-
-from rest_framework import generics, permissions
-from .models import Comment, Post
-from .serializers import CommentSerializer
-
-class PostCommentListView(generics.ListAPIView):
-    """
-    List all comments for a specific post
-    """
-    serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        post_id = self.kwargs['post_id']
-        return Comment.objects.filter(post_id=post_id).order_by('-created_at')
-
-
+        notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+        notification.read = True
+        notification.save()
+        return Response({"status": "Notification marked as read"})
