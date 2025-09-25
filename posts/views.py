@@ -124,3 +124,7 @@ class MarkNotificationReadView(APIView):
         notification.read = True
         notification.save()
         return Response({"status": "Notification marked as read"})
+
+class PostListView(generics.ListCreateAPIView):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
