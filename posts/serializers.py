@@ -1,14 +1,14 @@
 from rest_framework import serializers
-from .models import Post, Like, Comment
+from .models import Post, Like, Comment, Notification
 from .supabase_client import supabase
 import mimetypes
 
-
+# ---------------- Post Serializer ----------------
 class PostSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.username', read_only=True)
     image = serializers.ImageField(write_only=True, required=False)
     image_url = serializers.URLField(read_only=True)
-    is_active = serializers.BooleanField(read_only=True)  # Always read-only
+    is_active = serializers.BooleanField(read_only=True)
     total_likes = serializers.SerializerMethodField()
     total_comments = serializers.SerializerMethodField()
     liked = serializers.SerializerMethodField()
@@ -23,7 +23,6 @@ class PostSerializer(serializers.ModelSerializer):
             'is_active'
         ]
 
-    # ---------- Validation ----------
     def validate_image(self, value):
         if value.size > 2 * 1024 * 1024:
             raise serializers.ValidationError("Image size must be <= 2MB")
@@ -32,7 +31,6 @@ class PostSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Only JPG and PNG images are allowed")
         return value
 
-    # ---------- Supabase Upload ----------
     def upload_image_to_supabase(self, post_id, image):
         file_bytes = image.read()
         mime_type, _ = mimetypes.guess_type(image.name)
@@ -42,14 +40,10 @@ class PostSerializer(serializers.ModelSerializer):
         supabase.storage.from_(bucket).upload(
             file_name,
             file_bytes,
-            {
-                "upsert": "true",
-                "content-type": mime_type or "application/octet-stream",
-            },
+            {"upsert": "true", "content-type": mime_type or "application/octet-stream"},
         )
         return supabase.storage.from_(bucket).get_public_url(file_name)
 
-    # ---------- Create & Update ----------
     def create(self, validated_data):
         validated_data['is_active'] = True
         image = validated_data.pop('image', None)
@@ -58,7 +52,6 @@ class PostSerializer(serializers.ModelSerializer):
         if image:
             post.image_url = self.upload_image_to_supabase(post.id, image)
             post.save()
-
         return post
 
     def update(self, instance, validated_data):
@@ -69,18 +62,33 @@ class PostSerializer(serializers.ModelSerializer):
         if image:
             instance.image_url = self.upload_image_to_supabase(instance.id, image)
             instance.save()
-
         return instance
 
-    # ---------- Computed Fields ----------
     def get_total_likes(self, obj):
-        return obj.post_likes.count()  # related_name in Like model
+        return obj.post_likes.count()
 
     def get_total_comments(self, obj):
-        return obj.comments.count()  # related_name in Comment model
+        return obj.comments.count()
 
     def get_liked(self, obj):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             return obj.post_likes.filter(user=request.user).exists()
         return False
+
+# ---------------- Comment Serializer ----------------
+class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.CharField(source='author.username', read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'author', 'post', 'content', 'created_at']
+
+# ---------------- Notification Serializer ----------------
+class NotificationSerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    post_id = serializers.IntegerField(source='post.id', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = ['id', 'sender_username', 'post_id', 'message', 'read', 'created_at']
