@@ -140,3 +140,20 @@ class MarkNotificationReadView(APIView):
         except Notification.DoesNotExist:
             return Response({"error": "Notification not found"}, status=404)
 
+
+from rest_framework import generics, permissions
+from .models import Comment, Post
+from .serializers import CommentSerializer
+
+class PostCommentListView(generics.ListAPIView):
+    """
+    List all comments for a specific post
+    """
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        post_id = self.kwargs['post_id']
+        return Comment.objects.filter(post_id=post_id).order_by('-created_at')
+
+
