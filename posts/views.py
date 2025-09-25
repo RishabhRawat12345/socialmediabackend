@@ -40,7 +40,7 @@ class LikePostView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, post_id):
-        post = get_object_or_404(Post, id=post_id)
+        post = get_object_or_404(Post, id=post_id, is_active=True)  # Active post only
         user = request.user
 
         like_obj, created = Like.objects.get_or_create(user=user, post=post)
@@ -58,8 +58,9 @@ class LikePostView(APIView):
                     message=f"{user.username} liked your post."
                 )
 
-        likes_count = post.post_likes.count()  # corrected related_name
+        likes_count = post.likes.count()
         return Response({"liked": liked, "likes_count": likes_count})
+
 
 
 # ---------------- Comment Views ----------------
