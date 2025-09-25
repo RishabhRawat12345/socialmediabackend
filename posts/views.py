@@ -7,6 +7,8 @@ from django.shortcuts import get_object_or_404
 from .models import Post, Comment, Like
 from .serializers import PostSerializer, CommentSerializer
 from notifications.utils import create_notification
+from .utils import create_notification
+
 
 # ---------------- Post Views ----------------
 class PostListCreateView(generics.ListCreateAPIView):
@@ -106,3 +108,35 @@ class MyPostListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Post.objects.filter(author=self.request.user, is_active=True)
+
+
+from .models import Notification
+from .serializers import NotificationSerializer
+
+# ---------------- Notifications ----------------
+class NotificationListView(generics.ListAPIView):
+    """
+    List all notifications for the logged-in user
+    """
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user)
+
+
+class MarkNotificationReadView(APIView):
+    """
+    Mark a notification as read
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, notification_id):
+        try:
+            notification = Notification.objects.get(id=notification_id, recipient=request.user)
+            notification.read = True
+            notification.save()
+            return Response({"status": "Notification marked as read"})
+        except Notification.DoesNotExist:
+            return Response({"error": "Notification not found"}, status=404)
+
