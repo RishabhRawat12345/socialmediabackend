@@ -1,17 +1,22 @@
 from django.urls import path
 from .views import (
-    PostListCreateView, PostDetailView, MyPostListView,
+    PostListView, PostDetailView, MyPostListView,
     LikePostView, CommentCreateView,
-    NotificationListView, MarkNotificationReadView, PostCommentListView,PostListView
+    NotificationListView, MarkNotificationReadView, PostCommentListView
 )
 
 urlpatterns = [
+    # Posts
     path('', PostListView.as_view(), name='post-list'),
     path('<int:pk>/', PostDetailView.as_view(), name='post-detail'),
     path('myposts/', MyPostListView.as_view(), name='my-posts'),
+
+    # Likes
     path('<int:post_id>/like/', LikePostView.as_view(), name='post-like'),
-    path('posts/<int:post_id>/comments/', PostCommentListView.as_view(), name='post-comments'),
-    path('posts/<int:post_id>/comments/create/', CommentCreateView.as_view(), name='create-comment'),
+
+    # Comments
+    path('<int:post_id>/comments/', PostCommentListView.as_view(), name='post-comments'),
+    path('<int:post_id>/comments/create/', CommentCreateView.as_view(), name='create-comment'),
 
     # Notifications
     path('notifications/', NotificationListView.as_view(), name='notifications'),
