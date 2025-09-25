@@ -81,7 +81,6 @@ class CommentCreateView(generics.CreateAPIView):
 
 
 # ---------------- Like Post View ----------------
-
 class LikePostView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -95,17 +94,21 @@ class LikePostView(APIView):
             liked = False
         else:
             liked = True
+            # Create notification for post author
             if post.author != user:
                 create_notification(
                     sender=user,
-                    recipient=post.author,  # only post creator gets it
+                    recipient=post.author,
                     notification_type='like',
                     post=post,
                     message=f"{user.username} liked your post."
                 )
 
-        likes_count = post.likes.count()
-        return Response({"liked": liked, "likes_count": likes_count})
+        # ✅ Use related_name from Like model
+        total_likes = post.post_likes.count()
+
+        return Response({"liked": liked, "total_likes": total_likes})
+
 
 
 # ---------------- Notifications ----------------
