@@ -3,6 +3,7 @@ from .models import Post, Like, Comment, Notification
 from .supabase_client import supabase
 import mimetypes
 
+
 # ---------------- Post Serializer ----------------
 class PostSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.username', read_only=True)
@@ -64,17 +65,19 @@ class PostSerializer(serializers.ModelSerializer):
             instance.save()
         return instance
 
+    # ---------- Computed Fields ----------
     def get_total_likes(self, obj):
-        return obj.post_likes.count()
+        return obj.likes.count() if hasattr(obj, 'likes') else 0
 
     def get_total_comments(self, obj):
-        return obj.comments.count()
+        return obj.comments.count() if hasattr(obj, 'comments') else 0
 
     def get_liked(self, obj):
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            return obj.post_likes.filter(user=request.user).exists()
+        if request and request.user.is_authenticated and hasattr(obj, 'likes'):
+            return obj.likes.filter(user=request.user).exists()
         return False
+
 
 # ---------------- Comment Serializer ----------------
 class CommentSerializer(serializers.ModelSerializer):
@@ -83,6 +86,7 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = ['id', 'author', 'post', 'content', 'created_at']
+
 
 # ---------------- Notification Serializer ----------------
 class NotificationSerializer(serializers.ModelSerializer):
