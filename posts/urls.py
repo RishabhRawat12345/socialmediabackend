@@ -2,11 +2,11 @@ from django.urls import path
 from .views import (
     PostListCreateView, PostDetailView, MyPostListView,
     LikePostView, CommentCreateView,
-    NotificationListView, MarkNotificationReadView, PostCommentListView
+    NotificationListView, MarkNotificationReadView, PostCommentListView,PostListView
 )
 
 urlpatterns = [
-    path('', PostListCreateView.as_view(), name='post-list-create'),
+    path('', PostListView.as_view(), name='post-list'),
     path('<int:pk>/', PostDetailView.as_view(), name='post-detail'),
     path('myposts/', MyPostListView.as_view(), name='my-posts'),
     path('<int:post_id>/like/', LikePostView.as_view(), name='post-like'),
