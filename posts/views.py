@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
@@ -12,13 +12,16 @@ from .utils import create_notification  # ensure this exists
 # ---------------- Post Views ----------------
 
 class PostListView(generics.ListCreateAPIView):
-    queryset = Post.objects.all()
+    queryset = Post.objects.filter(is_active=True)
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
 
 class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Post.objects.all()
+    queryset = Post.objects.filter(is_active=True)
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -53,25 +56,30 @@ class PostCommentListView(generics.ListAPIView):
         return Comment.objects.filter(post=post).order_by('-created_at')
 
 
-class CommentCreateView(generics.CreateAPIView):
-    serializer_class = CommentSerializer
+class CommentCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        post = serializer.validated_data['post']
-        if hasattr(post, 'is_active') and not post.is_active:
-            raise PermissionDenied("Cannot comment on an inactive post.")
+    def post(self, request, post_id):
+        post = get_object_or_404(Post, id=post_id)
+        if not post.is_active:
+            return Response({"error": "Cannot comment on an inactive post."}, status=status.HTTP_403_FORBIDDEN)
 
-        comment = serializer.save(author=self.request.user)
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            comment = serializer.save(author=request.user, post=post)
 
-        if comment.post.author != self.request.user:
-            create_notification(
-                sender=self.request.user,
-                recipient=comment.post.author,
-                notification_type='comment',
-                post=comment.post,
-                message=f"{self.request.user.username} commented on your post."
-            )
+            # Notification for post owner
+            if post.author != request.user:
+                create_notification(
+                    sender=request.user,
+                    recipient=post.author,
+                    notification_type='comment',
+                    post=post,
+                    message=f"{request.user.username} commented on your post."
+                )
+
+            return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ---------------- Like Post View ----------------
@@ -109,7 +117,7 @@ class NotificationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Notification.objects.filter(recipient=self.request.user)
+        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
 
 
 class MarkNotificationReadView(APIView):
