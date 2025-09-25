@@ -69,7 +69,12 @@ class CommentCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
+        post = serializer.validated_data['post']
+        if not post.is_active:
+            raise PermissionDenied("Cannot comment on an inactive post.")
+
         comment = serializer.save(author=self.request.user)
+
         if comment.post.author != self.request.user:
             create_notification(
                 sender=self.request.user,
