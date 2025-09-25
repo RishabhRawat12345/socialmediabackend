@@ -9,8 +9,6 @@ from .serializers import PostSerializer, CommentSerializer, NotificationSerializ
 from .utils import create_notification
 
 
-# ---------------- Post Views ----------------
-
 class PostListView(generics.ListCreateAPIView):
     queryset = Post.objects.filter(is_active=True)
     serializer_class = PostSerializer
@@ -59,8 +57,6 @@ class MyPostListView(generics.ListAPIView):
         return context
 
 
-# ---------------- Comment Views ----------------
-
 class PostCommentListView(generics.ListAPIView):
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -83,13 +79,9 @@ class CommentCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         post_id = self.kwargs['post_id']
         post = get_object_or_404(Post, id=post_id)
-
-        if hasattr(post, 'is_active') and not post.is_active:
+        if not post.is_active:
             raise PermissionDenied("Cannot comment on an inactive post.")
-
         comment = serializer.save(author=self.request.user, post=post)
-
-        # Notify only the post author
         if post.author != self.request.user:
             create_notification(
                 sender=self.request.user,
@@ -100,7 +92,6 @@ class CommentCreateView(generics.CreateAPIView):
             )
 
 
-# ---------------- Like Post View ----------------
 class LikePostView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -114,7 +105,6 @@ class LikePostView(APIView):
             liked = False
         else:
             liked = True
-            # Create notification for post author
             if post.author != user:
                 create_notification(
                     sender=user,
@@ -124,11 +114,9 @@ class LikePostView(APIView):
                     message=f"{user.username} liked your post."
                 )
 
-        total_likes = post.post_likes.count()
+        total_likes = post.likes.count()
         return Response({"liked": liked, "total_likes": total_likes})
 
-
-# ---------------- Notifications ----------------
 
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
