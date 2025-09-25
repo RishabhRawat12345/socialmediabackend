@@ -13,7 +13,7 @@ class Post(models.Model):
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='posts'  # user.posts will give all posts by the user
+        related_name='user_posts'  # unique name for posts by a user
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -34,17 +34,17 @@ class Like(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='post_likes'  # unique related_name
+        related_name='user_post_likes'  # unique name
     )
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
-        related_name='likes'  # post.likes will give all likes for this post
+        related_name='post_likes'  # unique name
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'post')  # prevent duplicate likes
+        unique_together = ('user', 'post')
 
     def __str__(self):
         return f"{self.user.username} liked Post {self.post.id}"
@@ -54,12 +54,12 @@ class Comment(models.Model):
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
-        related_name='comments'  # post.comments will give all comments for the post
+        related_name='post_comments'  # unique name
     )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='post_comments'  # unique related_name to avoid clashes
+        related_name='user_post_comments'  # unique name
     )
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -77,19 +77,19 @@ class Notification(models.Model):
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="sent_post_notifications"
+        related_name="sent_post_notifications"  # unique
     )
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="received_post_notifications"  # unique name
+        related_name="received_post_notifications"  # unique
     )
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="post_notifications"  # unique name
+        related_name="post_notifications"  # unique
     )
     notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
     message = models.TextField()
