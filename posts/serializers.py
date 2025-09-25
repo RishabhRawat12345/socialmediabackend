@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Post, Comment
 from .supabase_client import supabase
 import mimetypes
+from .models import Notification
 
 class PostSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.username', read_only=True)
