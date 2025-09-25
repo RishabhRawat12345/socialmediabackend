@@ -70,3 +70,13 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ['id', 'post', 'author', 'content', 'created_at']
         read_only_fields = ['id', 'author', 'created_at']
+        
+class NotificationSerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source="sender.username", read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            "id", "sender_username", "message",
+            "notification_type", "post", "read", "created_at"
+        ]
