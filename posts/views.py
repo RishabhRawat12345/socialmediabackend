@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
@@ -69,15 +69,15 @@ class CommentCreateView(generics.CreateAPIView):
 
         comment = serializer.save(author=self.request.user, post=post)
 
-        if comment.post.author != self.request.user:
+        # ✅ Notify only the post author (creator)
+        if post.author != self.request.user:
             create_notification(
                 sender=self.request.user,
-                recipient=comment.post.author,
+                recipient=post.author,   # only post creator gets it
                 notification_type='comment',
-                post=comment.post,
-                message=f"{self.request.user.username} commented on your post."
+                post=post,
+                message=f"{comment.author.username} commented: {comment.content[:50]}..."
             )
-
 
 
 # ---------------- Like Post View ----------------
@@ -98,7 +98,7 @@ class LikePostView(APIView):
             if post.author != user:
                 create_notification(
                     sender=user,
-                    recipient=post.author,
+                    recipient=post.author,  # only post creator gets it
                     notification_type='like',
                     post=post,
                     message=f"{user.username} liked your post."
@@ -115,6 +115,7 @@ class NotificationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        # ✅ Only notifications for the current user (post creator)
         return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
 
 
