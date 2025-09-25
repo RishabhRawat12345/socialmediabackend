@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 
+# ---------------- Post Model ----------------
 class Post(models.Model):
     CATEGORY_CHOICES = [
         ('general', 'General'),
@@ -10,9 +11,9 @@ class Post(models.Model):
 
     content = models.TextField(max_length=280)
     author = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.CASCADE, 
-        related_name='posts'
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='posts'  # user.posts will give all posts by the user
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -23,31 +24,50 @@ class Post(models.Model):
     comment_count = models.PositiveIntegerField(default=0)
 
     class Meta:
-        ordering = ['-created_at']  # Latest posts first
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.author.username}'s post ({self.id})"
+
+# ---------------- Like Model ----------------
 class Like(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='likes')
-    post = models.ForeignKey('Post', on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='post_likes'  # unique related_name
+    )
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='likes'  # post.likes will give all likes for this post
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'post')  # Prevent duplicate likes
+        unique_together = ('user', 'post')  # prevent duplicate likes
 
     def __str__(self):
         return f"{self.user.username} liked Post {self.post.id}"
 
-# posts/models.py
+# ---------------- Comment Model ----------------
 class Comment(models.Model):
-    post = models.ForeignKey('Post', on_delete=models.CASCADE, related_name='comments')
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments'  # post.comments will give all comments for the post
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='post_comments'  # unique related_name to avoid clashes
+    )
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.author.username} on Post {self.post.id}"
 
+# ---------------- Notification Model ----------------
 class Notification(models.Model):
     NOTIFICATION_TYPES = [
         ('like', 'Like'),
@@ -57,19 +77,19 @@ class Notification(models.Model):
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="sent_notifications"
+        related_name="sent_post_notifications"
     )
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="notifications"
+        related_name="received_post_notifications"  # unique name
     )
     post = models.ForeignKey(
-        'Post',
+        Post,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="notifications"
+        related_name="post_notifications"  # unique name
     )
     notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
     message = models.TextField()
@@ -81,4 +101,3 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.sender.username} -> {self.recipient.username} ({self.notification_type})"
-
