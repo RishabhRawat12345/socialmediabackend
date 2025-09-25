@@ -10,13 +10,16 @@ from .utils import create_notification  # make sure this is correct
 
 
 # ---------------- Post Views ----------------
-class PostListCreateView(generics.ListCreateAPIView):
-    queryset = Post.objects.filter(is_active=True)
-    serializer_class = PostSerializer
+
+class PostCommentListView(generics.ListAPIView):
+    serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+    def get_queryset(self):
+        post_id = self.kwargs['post_id']
+        # Only allow comments for active posts
+        post = get_object_or_404(Post, id=post_id, is_active=True)
+        return Comment.objects.filter(post=post).order_by('-created_at')
 
 
 class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
