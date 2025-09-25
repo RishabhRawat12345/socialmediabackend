@@ -56,30 +56,28 @@ class PostCommentListView(generics.ListAPIView):
         return Comment.objects.filter(post=post).order_by('-created_at')
 
 
-class CommentCreateView(APIView):
+class CommentCreateView(generics.CreateAPIView):
+    serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, post_id):
+    def perform_create(self, serializer):
+        post_id = self.kwargs['post_id']  # get from URL
         post = get_object_or_404(Post, id=post_id)
-        if not post.is_active:
-            return Response({"error": "Cannot comment on an inactive post."}, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = CommentSerializer(data=request.data)
-        if serializer.is_valid():
-            comment = serializer.save(author=request.user, post=post)
+        if hasattr(post, 'is_active') and not post.is_active:
+            raise PermissionDenied("Cannot comment on an inactive post.")
 
-            # Notification for post owner
-            if post.author != request.user:
-                create_notification(
-                    sender=request.user,
-                    recipient=post.author,
-                    notification_type='comment',
-                    post=post,
-                    message=f"{request.user.username} commented on your post."
-                )
+        comment = serializer.save(author=self.request.user, post=post)
 
-            return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if comment.post.author != self.request.user:
+            create_notification(
+                sender=self.request.user,
+                recipient=comment.post.author,
+                notification_type='comment',
+                post=comment.post,
+                message=f"{self.request.user.username} commented on your post."
+            )
+
 
 
 # ---------------- Like Post View ----------------
