@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 
 from .models import Post, Comment, Like, Notification
 from .serializers import PostSerializer, CommentSerializer, NotificationSerializer
-from .utils import create_notification  # ensure this exists
+from .utils import create_notification
 
 
 # ---------------- Post Views ----------------
@@ -18,6 +18,11 @@ class PostListView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
 
 class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -35,6 +40,11 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("You can only delete your own post")
         instance.delete()
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
 
 class MyPostListView(generics.ListAPIView):
     serializer_class = PostSerializer
@@ -42,6 +52,11 @@ class MyPostListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Post.objects.filter(author=self.request.user, is_active=True)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
 
 # ---------------- Comment Views ----------------
@@ -55,13 +70,18 @@ class PostCommentListView(generics.ListAPIView):
         post = get_object_or_404(Post, id=post_id)
         return Comment.objects.filter(post=post).order_by('-created_at')
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
 
 class CommentCreateView(generics.CreateAPIView):
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        post_id = self.kwargs['post_id']  # get from URL
+        post_id = self.kwargs['post_id']
         post = get_object_or_404(Post, id=post_id)
 
         if hasattr(post, 'is_active') and not post.is_active:
@@ -69,11 +89,11 @@ class CommentCreateView(generics.CreateAPIView):
 
         comment = serializer.save(author=self.request.user, post=post)
 
-        # ✅ Notify only the post author (creator)
+        # Notify only the post author
         if post.author != self.request.user:
             create_notification(
                 sender=self.request.user,
-                recipient=post.author,   # only post creator gets it
+                recipient=post.author,
                 notification_type='comment',
                 post=post,
                 message=f"{comment.author.username} commented: {comment.content[:50]}..."
@@ -104,11 +124,8 @@ class LikePostView(APIView):
                     message=f"{user.username} liked your post."
                 )
 
-        # ✅ Use related_name from Like model
         total_likes = post.post_likes.count()
-
         return Response({"liked": liked, "total_likes": total_likes})
-
 
 
 # ---------------- Notifications ----------------
@@ -118,7 +135,6 @@ class NotificationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # ✅ Only notifications for the current user (post creator)
         return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
 
 
