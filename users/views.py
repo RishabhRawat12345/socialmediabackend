@@ -10,7 +10,7 @@ from django.contrib.auth.hashers import make_password
 from .serializers import RegisterSerializer
 from .models import CustomUser
 from .supabase_client import supabase
-
+from .serializers import UserSearchSerializer
 User = get_user_model()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -240,3 +240,23 @@ class TokenRefreshView(APIView):
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": "Invalid refresh token"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserSearchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = request.GET.get('q', '')
+        if query:
+            users = CustomUser.objects.filter(
+                username__icontains=query
+            ) | CustomUser.objects.filter(
+                first_name__icontains=query
+            ) | CustomUser.objects.filter(
+                last_name__icontains=query
+            )
+        else:
+            users = CustomUser.objects.none()
+
+        serializer = UserSearchSerializer(users, many=True)
+        return Response(serializer.data)
