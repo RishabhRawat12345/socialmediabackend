@@ -66,4 +66,9 @@ class RegisterSerializer(serializers.Serializer):
         return user
 
 
+class UserSearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'first_name', 'last_name', 'avatar']
+
 
