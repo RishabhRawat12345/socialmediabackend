@@ -172,31 +172,74 @@ class PasswordResetConfirmView(APIView):
         if not access_token or not new_password:
             return Response({"error": "Access token and new password required"}, status=400)
 
+        # Defensive env checks
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            return Response({"error": "Supabase credentials not configured"}, status=500)
+
         try:
-            # Temporary supabase client using access token
             from supabase import create_client
+        except Exception as e:
+            print("Failed importing supabase.create_client:", e)
+            return Response({"error": "Server misconfiguration"}, status=500)
+
+        # Create temp client with session
+        try:
             temp_supabase = create_client(SUPABASE_URL, SUPABASE_KEY, session={"access_token": access_token})
+        except Exception as e:
+            print("Failed to init supabase client:", e)
+            return Response({"error": "Failed to initialize Supabase client"}, status=500)
 
-            # Update Supabase password
+        # Call update_user and handle different response shapes
+        try:
             sup_resp = temp_supabase.auth.update_user({"password": new_password})
+        except Exception as e:
+            print("supabase.update_user exception:", e)
+            return Response({"error": "Failed to update Supabase password"}, status=400)
 
-            # sup_resp may be dict or object
-            sup_user = getattr(sup_resp, "user", None) or sup_resp.get("user") if isinstance(sup_resp, dict) else None
-            sup_error = getattr(sup_resp, "error", None) or sup_resp.get("error") if isinstance(sup_resp, dict) else None
+        # Normalize response to dict-like user and error
+        sup_user = None
+        sup_error = None
+        try:
+            if isinstance(sup_resp, dict):
+                sup_user = sup_resp.get("user")
+                sup_error = sup_resp.get("error")
+            else:
+                # object-like
+                sup_user = getattr(sup_resp, "user", None)
+                sup_error = getattr(sup_resp, "error", None)
+        except Exception as e:
+            print("Error parsing supabase response:", e)
+            return Response({"error": "Invalid Supabase response"}, status=500)
 
-            if sup_error or not sup_user:
-                return Response({"error": sup_error or "Failed to reset password in Supabase"}, status=400)
+        if sup_error or not sup_user:
+            print("Supabase update failed:", sup_error or sup_resp)
+            return Response({"error": "Failed to reset password in Supabase"}, status=400)
 
-            # Update Django user
-            user = CustomUser.objects.filter(email=sup_user.email).first()
+        # Extract email safely from sup_user (dict or object)
+        try:
+            if isinstance(sup_user, dict):
+                user_email = sup_user.get("email")
+            else:
+                user_email = getattr(sup_user, "email", None)
+        except Exception:
+            user_email = None
+
+        if not user_email:
+            print("Supabase returned user without email:", sup_user)
+            return Response({"error": "Supabase user missing email"}, status=500)
+
+        # Update Django user password
+        try:
+            user = CustomUser.objects.filter(email=user_email).first()
             if user:
                 user.set_password(new_password)
                 user.save()
-
-            return Response({"message": "Password reset successfully"}, status=200)
-
         except Exception as e:
-            return Response({"error": f"Server error: {str(e)}"}, status=500)
+            print("Failed to update Django user password:", e)
+            return Response({"error": "Failed to update local user password"}, status=500)
+
+        return Response({"message": "Password reset successfully"}, status=200)
+
 
 
 # CHANGE PASSWORD (AUTHENTICATED)
