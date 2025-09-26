@@ -81,11 +81,16 @@ class PostSerializer(serializers.ModelSerializer):
 
 # ---------------- Comment Serializer ----------------
 class CommentSerializer(serializers.ModelSerializer):
-    author = serializers.CharField(source='author.username', read_only=True)
+    author = serializers.CharField(source="author.username", read_only=True)
 
     class Meta:
         model = Comment
-        fields = ['id', 'author', 'post', 'content', 'created_at']
+        fields = ["id", "author", "post", "content", "created_at"]
+        extra_kwargs = {
+            "post": {"read_only": True},   # ✅ prevents 400 error
+            "author": {"read_only": True}, # ✅ user is injected from request
+        }
+
 
 
 # ---------------- Notification Serializer ----------------
