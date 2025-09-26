@@ -165,62 +165,39 @@ class PasswordResetView(APIView):
 # PASSWORD RESET CONFIRM
 # ----------------------------
 class PasswordResetConfirmView(APIView):
-    """
-    Receives a Supabase access_token (from the password reset link) and new_password.
-    Uses supabase.auth.update_user to set the new Supabase password, then updates Django user.
-    Returns string errors (never raw objects) to make frontend rendering safe.
-    """
     def post(self, request):
         access_token = request.data.get("access_token")
         new_password = request.data.get("new_password")
 
         if not access_token or not new_password:
-            return Response({"error": "Access token and new password required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Access token and new password required"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        # Use supabase client update_user, passing the access token
         try:
-            # supabase.auth.update_user returns an object or dict depending on client version
-            sup_resp = supabase.auth.update_user({"password": new_password}, access_token=access_token)
+            # Create a temporary supabase client with the access token
+            from supabase import create_client
+            temp_supabase = create_client(SUPABASE_URL, SUPABASE_KEY, session={"access_token": access_token})
+
+            # Update password
+            sup_resp = temp_supabase.auth.update_user({"password": new_password})
         except Exception as e:
-            # Return safe string message
-            return Response({"error": f"Failed to update Supabase user: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # Extract response safely
-        try:
-            sup_user = None
-            # sup_resp may be a dict with "user" or an object with .user
-            if isinstance(sup_resp, dict):
-                sup_user = sup_resp.get("user")
-                sup_error = sup_resp.get("error") or sup_resp.get("message")
-            else:
-                sup_user = getattr(sup_resp, "user", None)
-                sup_error = getattr(sup_resp, "error", None) or getattr(sup_resp, "message", None)
-
-            if sup_user is None:
-                # If supabase returned an error, extract message from response or fallback
-                # Convert sup_resp to string safely for message
-                try:
-                    # If sup_resp is requests.Response-like dict
-                    error_message = sup_error or str(sup_resp)
-                except Exception:
-                    error_message = "Failed to change password in Supabase."
-                return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
-
-            # sup_user contains user's email. Update Django user password
-            user = CustomUser.objects.filter(email=sup_user.email).first()
-            if user:
-                # Use set_password to ensure correct hashing and other hooks
-                user.set_password(new_password)
-                user.save()
-
-            return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response({"error": f"Server error while finalizing password reset: {str(e)}"},
+            return Response({"error": f"Failed to update Supabase user: {str(e)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        # Extract user safely
+        sup_user = getattr(sup_resp, "user", None)
+        if sup_user is None:
+            return Response({"error": "Failed to reset password in Supabase"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-# ----------------------------
+        # Update Django password
+        user = CustomUser.objects.filter(email=sup_user.email).first()
+        if user:
+            user.set_password(new_password)
+            user.save()
+
+        return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)
+
 # CHANGE PASSWORD (AUTHENTICATED)
 # ----------------------------
 class ChangePasswordView(APIView):
