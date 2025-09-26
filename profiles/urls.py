@@ -5,6 +5,7 @@ from .views import (
     UserProfileUpdateView,
     MyProfileDetailView,   # ✅ Added this missing import
     MyProfileUpdateView,
+     UserSearchView
 )
 
 urlpatterns = [
