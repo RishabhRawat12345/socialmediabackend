@@ -170,33 +170,34 @@ class PasswordResetConfirmView(APIView):
         new_password = request.data.get("new_password")
 
         if not access_token or not new_password:
-            return Response({"error": "Access token and new password required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Access token and new password required"}, status=400)
 
         try:
-            # Create a temporary supabase client with the access token
+            # Temporary supabase client using access token
             from supabase import create_client
             temp_supabase = create_client(SUPABASE_URL, SUPABASE_KEY, session={"access_token": access_token})
 
-            # Update password
+            # Update Supabase password
             sup_resp = temp_supabase.auth.update_user({"password": new_password})
+
+            # sup_resp may be dict or object
+            sup_user = getattr(sup_resp, "user", None) or sup_resp.get("user") if isinstance(sup_resp, dict) else None
+            sup_error = getattr(sup_resp, "error", None) or sup_resp.get("error") if isinstance(sup_resp, dict) else None
+
+            if sup_error or not sup_user:
+                return Response({"error": sup_error or "Failed to reset password in Supabase"}, status=400)
+
+            # Update Django user
+            user = CustomUser.objects.filter(email=sup_user.email).first()
+            if user:
+                user.set_password(new_password)
+                user.save()
+
+            return Response({"message": "Password reset successfully"}, status=200)
+
         except Exception as e:
-            return Response({"error": f"Failed to update Supabase user: {str(e)}"},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": f"Server error: {str(e)}"}, status=500)
 
-        # Extract user safely
-        sup_user = getattr(sup_resp, "user", None)
-        if sup_user is None:
-            return Response({"error": "Failed to reset password in Supabase"},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        # Update Django password
-        user = CustomUser.objects.filter(email=sup_user.email).first()
-        if user:
-            user.set_password(new_password)
-            user.save()
-
-        return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)
 
 # CHANGE PASSWORD (AUTHENTICATED)
 # ----------------------------
