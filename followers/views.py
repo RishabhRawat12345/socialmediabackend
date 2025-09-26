@@ -4,10 +4,10 @@ from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from .models import Follow
-from .serializers import FollowSerializer
-
+from .serializers import FollowSerializer, UserSerializer
 
 User = get_user_model()
+
 
 class FollowUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -16,6 +16,7 @@ class FollowUserView(APIView):
         target_user = get_object_or_404(User, id=user_id)
         if target_user == request.user:
             return Response({"detail": "You cannot follow yourself"}, status=status.HTTP_400_BAD_REQUEST)
+
         follow, created = Follow.objects.get_or_create(follower=request.user, following=target_user)
         if created:
             return Response({"detail": f"You are now following {target_user.username}"}, status=status.HTTP_201_CREATED)
@@ -32,18 +33,37 @@ class FollowUserView(APIView):
 
 
 class FollowersListView(generics.ListAPIView):
-    serializer_class = FollowSerializer
+    serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user_id = self.kwargs['user_id']
-        return Follow.objects.filter(following_id=user_id)
+        return User.objects.filter(following_set__following_id=user_id)
 
 
 class FollowingListView(generics.ListAPIView):
-    serializer_class = FollowSerializer
+    serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user_id = self.kwargs['user_id']
-        return Follow.objects.filter(follower_id=user_id)
+        return User.objects.filter(followers_set__follower_id=user_id)
+
+
+class FollowStatsView(APIView):
+    """
+    Endpoint to return follower and following counts
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, user_id):
+        target_user = get_object_or_404(User, id=user_id)
+        followers_count = Follow.objects.filter(following=target_user).count()
+        following_count = Follow.objects.filter(follower=target_user).count()
+
+        return Response({
+            "user_id": target_user.id,
+            "username": target_user.username,
+            "followers_count": followers_count,
+            "following_count": following_count
+        }, status=status.HTTP_200_OK)
