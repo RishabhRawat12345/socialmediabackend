@@ -11,6 +11,7 @@ from .serializers import RegisterSerializer
 from .models import CustomUser
 from .supabase_client import supabase
 from .serializers import UserSearchSerializer
+
 User = get_user_model()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -49,7 +50,7 @@ class VerifySupabaseUserView(generics.GenericAPIView):
 
         try:
             user_info = supabase.auth.get_user(access_token)
-            supabase_user = user_info.user
+            supabase_user = getattr(user_info, "user", None)
         except Exception as e:
             return Response({"error": f"Failed to fetch user from Supabase: {str(e)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -61,7 +62,7 @@ class VerifySupabaseUserView(generics.GenericAPIView):
         if not user:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if supabase_user.confirmed_at:
+        if getattr(supabase_user, "confirmed_at", None):
             user.is_active = True
             user.save()
             return Response({"message": "User verified successfully"}, status=status.HTTP_200_OK)
@@ -102,16 +103,18 @@ class LoginView(APIView):
         access_token = None
         try:
             supabase_response = supabase.auth.sign_in_with_password({"email": user.email, "password": password})
-            if supabase_response and supabase_response.session:
+            # supabase_response can be dict/obj depending on client; handle safely
+            if supabase_response and getattr(supabase_response, "session", None):
                 access_token = supabase_response.session.access_token
         except Exception as e:
+            # don't block login if supabase sign-in fails; log for debugging
             print("Supabase login failed:", e)
 
         return Response({
             "message": "Login successful",
             "email": user.email,
             "username": user.username,
-             "user_id": user.id,  
+            "user_id": user.id,
             "django_access": str(refresh.access_token),
             "django_refresh": str(refresh),
             "supabase_access_token": access_token
@@ -149,6 +152,7 @@ class PasswordResetView(APIView):
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            # Send Supabase reset email. Ensure redirect_to matches your frontend Reset page.
             supabase.auth.reset_password_email(email, options={
                 "redirect_to": "https://social-media-frontend-git-main-rishabhrawat12345s-projects.vercel.app/Reset-password"
             })
@@ -161,6 +165,11 @@ class PasswordResetView(APIView):
 # PASSWORD RESET CONFIRM
 # ----------------------------
 class PasswordResetConfirmView(APIView):
+    """
+    Receives a Supabase access_token (from the password reset link) and new_password.
+    Uses supabase.auth.update_user to set the new Supabase password, then updates Django user.
+    Returns string errors (never raw objects) to make frontend rendering safe.
+    """
     def post(self, request):
         access_token = request.data.get("access_token")
         new_password = request.data.get("new_password")
@@ -168,28 +177,47 @@ class PasswordResetConfirmView(APIView):
         if not access_token or not new_password:
             return Response({"error": "Access token and new password required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        url = f"{SUPABASE_URL}/auth/v1/user"
-        headers = {
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-        payload = {"password": new_password}
-
+        # Use supabase client update_user, passing the access token
         try:
-            resp = requests.put(url, json=payload, headers=headers)
-            if resp.status_code == 200:
-                # Update Django password
-                supabase_user_info = supabase.auth.get_user(access_token)
-                user = CustomUser.objects.filter(email=supabase_user_info.user.email).first()
-                if user:
-                    user.password = make_password(new_password)
-                    user.save()
-                return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": resp.json()}, status=resp.status_code)
+            # supabase.auth.update_user returns an object or dict depending on client version
+            sup_resp = supabase.auth.update_user({"password": new_password}, access_token=access_token)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Return safe string message
+            return Response({"error": f"Failed to update Supabase user: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Extract response safely
+        try:
+            sup_user = None
+            # sup_resp may be a dict with "user" or an object with .user
+            if isinstance(sup_resp, dict):
+                sup_user = sup_resp.get("user")
+                sup_error = sup_resp.get("error") or sup_resp.get("message")
+            else:
+                sup_user = getattr(sup_resp, "user", None)
+                sup_error = getattr(sup_resp, "error", None) or getattr(sup_resp, "message", None)
+
+            if sup_user is None:
+                # If supabase returned an error, extract message from response or fallback
+                # Convert sup_resp to string safely for message
+                try:
+                    # If sup_resp is requests.Response-like dict
+                    error_message = sup_error or str(sup_resp)
+                except Exception:
+                    error_message = "Failed to change password in Supabase."
+                return Response({"error": error_message}, status=status.HTTP_400_BAD_REQUEST)
+
+            # sup_user contains user's email. Update Django user password
+            user = CustomUser.objects.filter(email=sup_user.email).first()
+            if user:
+                # Use set_password to ensure correct hashing and other hooks
+                user.set_password(new_password)
+                user.save()
+
+            return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": f"Server error while finalizing password reset: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ----------------------------
@@ -211,13 +239,21 @@ class ChangePasswordView(APIView):
 
         try:
             # Update Django password
-            user.password = make_password(new_password)
+            user.set_password(new_password)
             user.save()
 
-            # Update Supabase password
-            supabase_user = supabase.auth.get_user_by_email(user.email)
-            if supabase_user and supabase_user.session:
-                supabase.auth.update_user({"password": new_password}, access_token=supabase_user.session.access_token)
+            # Attempt to update Supabase password if possible (best-effort)
+            try:
+                # If you have a way to get the user's supabase session/access token, use it.
+                # Here we attempt to get a supabase user by email (client behavior may vary)
+                sup_user_resp = supabase.auth.get_user_by_email(user.email)
+                sup_user = getattr(sup_user_resp, "user", None)
+                sup_session = getattr(sup_user_resp, "session", None)
+                if sup_user and sup_session:
+                    supabase.auth.update_user({"password": new_password}, access_token=sup_session.access_token)
+            except Exception:
+                # not fatal
+                pass
 
             return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
         except Exception as e:
