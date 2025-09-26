@@ -150,7 +150,7 @@ class PasswordResetView(APIView):
 
         try:
             supabase.auth.reset_password_email(email, options={
-                "redirect_to": "http://localhost:3000/reset-password"
+                "redirect_to": "http://localhost:3000/Reset-password"
             })
             return Response({"message": "Password reset email sent"}, status=status.HTTP_200_OK)
         except Exception as e:
