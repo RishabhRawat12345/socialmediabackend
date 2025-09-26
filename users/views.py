@@ -165,68 +165,53 @@ class PasswordResetView(APIView):
 # PASSWORD RESET CONFIRM
 # ----------------------------
 class PasswordResetConfirmView(APIView):
+    """
+    Resets the user's password using the Supabase access token sent via email.
+    Updates both Supabase and Django user passwords.
+    """
     def post(self, request):
         access_token = request.data.get("access_token")
         new_password = request.data.get("new_password")
 
+        # Validate input
         if not access_token or not new_password:
             return Response({"error": "Access token and new password required"}, status=400)
 
-        # Defensive env checks
         if not SUPABASE_URL or not SUPABASE_KEY:
             return Response({"error": "Supabase credentials not configured"}, status=500)
 
+        # Make REST request to Supabase auth endpoint
         try:
-            from supabase import create_client
+            url = f"{SUPABASE_URL}/auth/v1/user"
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "apikey": SUPABASE_KEY,
+                "Content-Type": "application/json",
+            }
+            payload = {"password": new_password}
+            resp = requests.put(url, json=payload, headers=headers, timeout=10)
         except Exception as e:
-            print("Failed importing supabase.create_client:", e)
-            return Response({"error": "Server misconfiguration"}, status=500)
+            print("HTTP request to Supabase auth user failed:", e)
+            return Response({"error": "Failed to update Supabase password"}, status=502)
 
-        # Create temp client with session
+        # Parse response
         try:
-            temp_supabase = create_client(SUPABASE_URL, SUPABASE_KEY, session={"access_token": access_token})
-        except Exception as e:
-            print("Failed to init supabase client:", e)
-            return Response({"error": "Failed to initialize Supabase client"}, status=500)
+            data = resp.json()
+        except Exception:
+            data = None
 
-        # Call update_user and handle different response shapes
-        try:
-            sup_resp = temp_supabase.auth.update_user({"password": new_password})
-        except Exception as e:
-            print("supabase.update_user exception:", e)
-            return Response({"error": "Failed to update Supabase password"}, status=400)
-
-        # Normalize response to dict-like user and error
-        sup_user = None
-        sup_error = None
-        try:
-            if isinstance(sup_resp, dict):
-                sup_user = sup_resp.get("user")
-                sup_error = sup_resp.get("error")
-            else:
-                # object-like
-                sup_user = getattr(sup_resp, "user", None)
-                sup_error = getattr(sup_resp, "error", None)
-        except Exception as e:
-            print("Error parsing supabase response:", e)
-            return Response({"error": "Invalid Supabase response"}, status=500)
-
-        if sup_error or not sup_user:
-            print("Supabase update failed:", sup_error or sup_resp)
+        if resp.status_code >= 400:
+            print("Supabase returned error:", resp.status_code, data)
             return Response({"error": "Failed to reset password in Supabase"}, status=400)
 
-        # Extract email safely from sup_user (dict or object)
-        try:
-            if isinstance(sup_user, dict):
-                user_email = sup_user.get("email")
-            else:
-                user_email = getattr(sup_user, "email", None)
-        except Exception:
-            user_email = None
+        # Extract email safely
+        user_email = None
+        if isinstance(data, dict):
+            user_email = data.get("email") or (data.get("user") and data["user"].get("email"))
 
         if not user_email:
-            print("Supabase returned user without email:", sup_user)
-            return Response({"error": "Supabase user missing email"}, status=500)
+            print("Supabase response missing email:", data)
+            return Response({"error": "Supabase user missing email in response"}, status=500)
 
         # Update Django user password
         try:
@@ -239,6 +224,8 @@ class PasswordResetConfirmView(APIView):
             return Response({"error": "Failed to update local user password"}, status=500)
 
         return Response({"message": "Password reset successfully"}, status=200)
+
+
 
 
 
