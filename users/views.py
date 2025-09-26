@@ -150,7 +150,7 @@ class PasswordResetView(APIView):
 
         try:
             supabase.auth.reset_password_email(email, options={
-                "redirect_to": "http://localhost:3000/Reset-password"
+                "redirect_to": "https://social-media-frontend-git-main-rishabhrawat12345s-projects.vercel.app/Reset-password"
             })
             return Response({"message": "Password reset email sent"}, status=status.HTTP_200_OK)
         except Exception as e:
