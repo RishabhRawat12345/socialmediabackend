@@ -50,20 +50,28 @@ class FollowingListView(generics.ListAPIView):
         return User.objects.filter(followers_set__follower_id=user_id)
 
 
+
 class FollowStatsView(APIView):
     """
-    Endpoint to return follower and following counts
+    Returns follower/following counts and follower IDs for a user.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, user_id):
         target_user = get_object_or_404(User, id=user_id)
-        followers_count = Follow.objects.filter(following=target_user).count()
+
+        # Followers
+        followers_qs = Follow.objects.filter(following=target_user)
+        followers_count = followers_qs.count()
+        followers_ids = list(followers_qs.values_list('follower__id', flat=True))
+
+        # Following
         following_count = Follow.objects.filter(follower=target_user).count()
 
         return Response({
             "user_id": target_user.id,
             "username": target_user.username,
             "followers_count": followers_count,
-            "following_count": following_count
+            "following_count": following_count,
+            "followers_ids": followers_ids  # frontend needs this
         }, status=status.HTTP_200_OK)
