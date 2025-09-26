@@ -111,6 +111,7 @@ class LoginView(APIView):
             "message": "Login successful",
             "email": user.email,
             "username": user.username,
+             "user_id": user.id,  
             "django_access": str(refresh.access_token),
             "django_refresh": str(refresh),
             "supabase_access_token": access_token
