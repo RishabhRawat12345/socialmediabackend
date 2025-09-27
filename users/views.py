@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAdminUser
 from .serializers import AdminUserSerializer, AdminPostSerializer
 from posts.models import Post
 from .serializers import AdminUserUpdateSerializer
-
+from .serializers import AdminPostUpdateSerializer  
 User = get_user_model()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -380,10 +380,12 @@ class AdminPostUpdateView(APIView):
         except Post.DoesNotExist:
             return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        is_active = request.data.get("is_active")
-        if is_active is not None:
-            post.is_active = is_active
-            post.save()
-            return Response({"message": "Post updated successfully"}, status=status.HTTP_200_OK)
+        serializer = AdminPostUpdateSerializer(post, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "message": "Post updated successfully",
+                "post": serializer.data
+            }, status=status.HTTP_200_OK)
 
-        return Response({"error": "is_active field required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
