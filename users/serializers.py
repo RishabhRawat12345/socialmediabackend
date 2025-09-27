@@ -5,6 +5,9 @@ from .supabase_client import supabase
 from posts.models import Post
 
 
+# --------------------------
+# REGISTER SERIALIZER
+# --------------------------
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     username = serializers.CharField(max_length=30)
@@ -20,39 +23,36 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def validate_email(self, value):
-        # Check in Django DB
         if CustomUser.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Email already exists")
-        
-        # Optional: Check in Supabase (requires service role key)
+            raise serializers.ValidationError("Email already exists in Django")
+
         try:
             user_response = supabase.auth.admin.get_user_by_email(value)
             if user_response.get("user"):
                 raise serializers.ValidationError("Email already exists in Supabase")
         except Exception:
-            pass  # ignore network or permission errors
+            pass  # ignore errors
         return value
 
     def create(self, validated_data):
         try:
             # Sign up in Supabase
-         credentials = {
-    "email": validated_data["email"],
-    "password": validated_data["password"],
-    "options": {
-        "data": {
-            "username": validated_data["username"],
-            "first_name": validated_data["first_name"],
-            "last_name": validated_data["last_name"],
-        }
-    }
-    }
-         response = supabase.auth.sign_up(credentials)
-         
+            credentials = {
+                "email": validated_data["email"],
+                "password": validated_data["password"],
+                "options": {
+                    "data": {
+                        "username": validated_data["username"],
+                        "first_name": validated_data["first_name"],
+                        "last_name": validated_data["last_name"],
+                    }
+                }
+            }
+            response = supabase.auth.sign_up(credentials)
         except Exception as e:
             raise serializers.ValidationError(f"Supabase signup failed: {str(e)}")
 
-        if not response.user:
+        if not getattr(response, "user", None):
             raise serializers.ValidationError("Supabase signup failed")
 
         # Save user in Django DB (inactive until email verification)
@@ -63,25 +63,51 @@ class RegisterSerializer(serializers.Serializer):
             last_name=validated_data["last_name"],
             is_active=True
         )
-        user.set_password(validated_data["password"])  # hash and save
+        user.set_password(validated_data["password"])
         user.save()
         return user
 
 
+# --------------------------
+# USER SEARCH SERIALIZER
+# --------------------------
 class UserSearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'username', 'first_name', 'last_name', 'avatar']
 
 
+# --------------------------
+# ADMIN USER SERIALIZER
+# --------------------------
 class AdminUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff']
 
+
+# --------------------------
+# ADMIN USER UPDATE SERIALIZER (PATCH/PUT)
+# --------------------------
+class AdminUserUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['is_active', 'is_staff']  # only these fields can be updated via admin
+
+
+# --------------------------
+# POST SERIALIZER
+# --------------------------
 class AdminPostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ['id', 'author', 'content', 'image_url', 'is_active', 'total_likes', 'total_comments']
 
 
+# --------------------------
+# ADMIN POST UPDATE SERIALIZER
+# --------------------------
+class AdminPostUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['is_active']  # only active status can be updated
