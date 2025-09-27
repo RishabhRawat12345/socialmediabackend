@@ -14,6 +14,7 @@ from .serializers import UserSearchSerializer
 from rest_framework.permissions import IsAdminUser
 from .serializers import AdminUserSerializer, AdminPostSerializer
 from posts.models import Post
+from .serializers import AdminUserUpdateSerializer
 
 User = get_user_model()
 
