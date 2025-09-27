@@ -99,9 +99,20 @@ class AdminUserUpdateSerializer(serializers.ModelSerializer):
 # POST SERIALIZER
 # --------------------------
 class AdminPostSerializer(serializers.ModelSerializer):
+    total_likes = serializers.SerializerMethodField()
+    total_comments = serializers.SerializerMethodField()
+
     class Meta:
         model = Post
         fields = ['id', 'author', 'content', 'image_url', 'is_active', 'total_likes', 'total_comments']
+
+    def get_total_likes(self, obj):
+        # Replace 'likes' with the related_name from your Post -> Like relationship
+        return obj.likes.count() if hasattr(obj, 'likes') else 0
+
+    def get_total_comments(self, obj):
+        # Replace 'comments' with the related_name from your Post -> Comment relationship
+        return obj.comments.count() if hasattr(obj, 'comments') else 0
 
 
 # --------------------------
