@@ -353,7 +353,7 @@ class AdminPostsListView(APIView):
 class AdminPostUpdateView(APIView):
     permission_classes = [IsAdminUser]
 
-    def patch(self, request, post_id):
+    def put(self, request, post_id):
         try:
             post = Post.objects.get(id=post_id)
         except Post.DoesNotExist:
