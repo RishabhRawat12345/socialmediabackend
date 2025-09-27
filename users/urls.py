@@ -4,7 +4,8 @@ from .views import (
     PasswordResetView, PasswordResetConfirmView, ChangePasswordView,
     UserSearchView, TokenRefreshView,
     AdminUsersListView, AdminUserUpdateView,
-    AdminPostsListView, AdminPostUpdateView
+    AdminPostsListView, AdminPostUpdateView,
+    AdminUserDetailView,
 )
 
 urlpatterns = [
