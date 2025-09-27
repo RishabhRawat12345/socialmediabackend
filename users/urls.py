@@ -2,7 +2,9 @@ from django.urls import path
 from .views import (
     RegisterView, VerifySupabaseUserView, LoginView, LogoutView,
     PasswordResetView, PasswordResetConfirmView, ChangePasswordView,
-    UserSearchView, TokenRefreshView  # use your custom one if intended
+    UserSearchView, TokenRefreshView,
+    AdminUsersListView, AdminUserUpdateView,
+    AdminPostsListView, AdminPostUpdateView
 )
 
 urlpatterns = [
@@ -22,4 +24,10 @@ urlpatterns = [
 
     # User features
     path('search-users/', UserSearchView.as_view(), name='search-users'),
+
+    # Admin Features
+    path('admin/users/', AdminUsersListView.as_view(), name='admin-users-list'),
+    path('admin/users/<int:user_id>/', AdminUserUpdateView.as_view(), name='admin-user-update'),
+    path('admin/posts/', AdminPostsListView.as_view(), name='admin-posts-list'),
+    path('admin/posts/<int:post_id>/', AdminPostUpdateView.as_view(), name='admin-post-update'),
 ]
