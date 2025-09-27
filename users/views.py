@@ -369,3 +369,22 @@ class AdminPostUpdateView(APIView):
 
         serializer = UserSearchSerializer(users, many=True)
         return Response(serializer.data)
+class AdminUserDetailView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, user_id):
+        user = CustomUser.objects.filter(id=user_id).first()
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = UserSearchSerializer(user)
+        return Response(serializer.data)
+
+    def put(self, request, user_id):
+        user = CustomUser.objects.filter(id=user_id).first()
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = UserSearchSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
