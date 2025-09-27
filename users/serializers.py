@@ -2,6 +2,8 @@ from rest_framework import serializers
 import re
 from .models import CustomUser
 from .supabase_client import supabase
+from posts.models import Post
+
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -70,5 +72,16 @@ class UserSearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'username', 'first_name', 'last_name', 'avatar']
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff']
+
+class AdminPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['id', 'author', 'content', 'image_url', 'is_active', 'total_likes', 'total_comments']
 
 
