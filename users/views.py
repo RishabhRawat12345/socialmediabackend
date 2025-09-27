@@ -11,6 +11,9 @@ from .serializers import RegisterSerializer
 from .models import CustomUser
 from .supabase_client import supabase
 from .serializers import UserSearchSerializer
+from rest_framework.permissions import IsAdminUser
+from .serializers import AdminUserSerializer, AdminPostSerializer
+from posts.models import Post
 
 User = get_user_model()
 
@@ -302,6 +305,67 @@ class UserSearchView(APIView):
             )
         else:
             users = CustomUser.objects.none()
+# --------------------------
+# List all users
+# --------------------------
+class AdminUsersListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        users = User.objects.all()
+        serializer = AdminUserSerializer(users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+# --------------------------
+# Update user (activate/deactivate)
+# --------------------------
+class AdminUserUpdateView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        is_active = request.data.get("is_active")
+        if is_active is not None:
+            user.is_active = is_active
+            user.save()
+            return Response({"message": "User updated successfully"}, status=status.HTTP_200_OK)
+
+        return Response({"error": "is_active field required"}, status=status.HTTP_400_BAD_REQUEST)
+
+# --------------------------
+# List all posts
+# --------------------------
+class AdminPostsListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        posts = Post.objects.all()
+        serializer = AdminPostSerializer(posts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+# --------------------------
+# Update post (activate/deactivate)
+# --------------------------
+class AdminPostUpdateView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        is_active = request.data.get("is_active")
+        if is_active is not None:
+            post.is_active = is_active
+            post.save()
+            return Response({"message": "Post updated successfully"}, status=status.HTTP_200_OK)
+
+        return Response({"error": "is_active field required"}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = UserSearchSerializer(users, many=True)
         return Response(serializer.data)
