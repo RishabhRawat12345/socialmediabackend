@@ -319,22 +319,29 @@ class AdminUsersListView(APIView):
 # --------------------------
 # Update user (activate/deactivate)
 # --------------------------
-class AdminUserUpdateView(APIView):
+class AdminPostUpdateView(APIView):
     permission_classes = [IsAdminUser]
 
-    def patch(self, request, user_id):
+    def put(self, request, post_id):
+        return self.update_post(request, post_id)
+
+    def patch(self, request, post_id):
+        return self.update_post(request, post_id)
+
+    def update_post(self, request, post_id):
         try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
 
         is_active = request.data.get("is_active")
         if is_active is not None:
-            user.is_active = is_active
-            user.save()
-            return Response({"message": "User updated successfully"}, status=status.HTTP_200_OK)
+            post.is_active = is_active
+            post.save()
+            return Response({"message": "Post updated successfully"}, status=status.HTTP_200_OK)
 
         return Response({"error": "is_active field required"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 # --------------------------
 # List all posts
