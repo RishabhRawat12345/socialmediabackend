@@ -115,27 +115,12 @@ class AdminPostSerializer(serializers.ModelSerializer):
         return obj.comments.count() if hasattr(obj, 'comments') else 0
 
 
+
 # --------------------------
 # ADMIN POST UPDATE SERIALIZER
 # --------------------------
-class AdminPostUpdateView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def put(self, request, post_id):
-        return self.update_post(request, post_id)
-
-    def patch(self, request, post_id):
-        return self.update_post(request, post_id)
-
-    def update_post(self, request, post_id):
-        try:
-            post = Post.objects.get(id=post_id)
-        except Post.DoesNotExist:
-            return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = AdminPostUpdateSerializer(post, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Post updated successfully", "post": serializer.data}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class AdminPostUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['is_active']  # Only allow updating post active status
 
