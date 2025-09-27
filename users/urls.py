@@ -27,7 +27,10 @@ urlpatterns = [
 
     # Admin Features
     path('admin/users/', AdminUsersListView.as_view(), name='admin-users-list'),
-    path('admin/users/<int:user_id>/', AdminUserUpdateView.as_view(), name='admin-user-update'),
+    path('admin/users/<int:user_id>/update/', AdminUserUpdateView.as_view(), name='admin-user-update'),
+    path('admin/users/<int:user_id>/detail/', AdminUserDetailView.as_view(), name='admin-user-detail'),
+
     path('admin/posts/', AdminPostsListView.as_view(), name='admin-posts-list'),
-    path('admin/posts/<int:post_id>/', AdminPostUpdateView.as_view(), name='admin-post-update'),
+    path('admin/posts/<int:post_id>/update/', AdminPostUpdateView.as_view(), name='admin-post-update'),
+
 ]
