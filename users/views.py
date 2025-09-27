@@ -380,12 +380,10 @@ class AdminPostUpdateView(APIView):
         except Post.DoesNotExist:
             return Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = AdminPostUpdateSerializer(post, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({
-                "message": "Post updated successfully",
-                "post": serializer.data
-            }, status=status.HTTP_200_OK)
+        is_active = request.data.get("is_active")
+        if is_active is not None:
+            # Directly update the field in DB, avoids signals
+            Post.objects.filter(id=post_id).update(is_active=is_active)
+            return Response({"message": "Post updated successfully"}, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "is_active field required"}, status=status.HTTP_400_BAD_REQUEST)
