@@ -331,19 +331,23 @@ class AdminUserDetailView(APIView):
         user = CustomUser.objects.filter(id=user_id).first()
         if not user:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = UserSearchSerializer(user)
+        serializer = AdminUserSerializer(user)  # read-only serializer
         return Response(serializer.data)
 
     def put(self, request, user_id):
         user = CustomUser.objects.filter(id=user_id).first()
         if not user:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = UserSearchSerializer(user, data=request.data, partial=True)
+
+        serializer = AdminUserUpdateSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response({"message": "User updated successfully", "user": serializer.data}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def patch(self, request, user_id):
+        return self.put(request, user_id)
+        
 
 # ----------------------------
 # ADMIN: LIST ALL POSTS
