@@ -120,6 +120,7 @@ class LoginView(APIView):
             "username": user.username,
             "user_id": user.id,
             "django_access": str(refresh.access_token),
+            "is_staff": user.is_staff,  
             "django_refresh": str(refresh),
             "supabase_access_token": access_token
         }, status=status.HTTP_200_OK)
