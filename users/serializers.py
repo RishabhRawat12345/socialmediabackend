@@ -58,6 +58,18 @@ class RegisterSerializer(serializers.Serializer):
         print("Supabase signup returned no user")
         raise serializers.ValidationError("Supabase signup failed")
 
+    # Save user in Django DB (inactive until email verification)
+    user = CustomUser.objects.create(
+        email=validated_data["email"],
+        username=validated_data["username"],
+        first_name=validated_data["first_name"],
+        last_name=validated_data["last_name"],
+        is_active=True
+    )
+    user.set_password(validated_data["password"])
+    user.save()
+    return user
+
 
         # Save user in Django DB (inactive until email verification)
         user = CustomUser.objects.create(
