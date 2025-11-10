@@ -27,51 +27,47 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("Email already exists in Django")
 
         try:
-            user_response = supabase.auth.admin.get_user_by_email(value)
-            if user_response.get("user"):
-                raise serializers.ValidationError("Email already exists in Supabase")
+            if supabase:
+                user_response = supabase.auth.admin.get_user_by_email(value)
+                if user_response.get("user"):
+                    raise serializers.ValidationError("Email already exists in Supabase")
         except Exception:
-            pass  # ignore errors
+            pass  # ignore errors if Supabase fails
         return value
 
     def create(self, validated_data):
-    try:
-        credentials = {
-            "email": validated_data["email"],
-            "password": validated_data["password"],
-            "options": {
-                "data": {
-                    "username": validated_data["username"],
-                    "first_name": validated_data["first_name"],
-                    "last_name": validated_data["last_name"],
+        """
+        Create a new user in both Supabase and Django DB
+        """
+        # -------------------------
+        # Sign up in Supabase
+        # -------------------------
+        try:
+            credentials = {
+                "email": validated_data["email"],
+                "password": validated_data["password"],
+                "options": {
+                    "data": {
+                        "username": validated_data["username"],
+                        "first_name": validated_data["first_name"],
+                        "last_name": validated_data["last_name"],
+                    }
                 }
             }
-        }
-        print("Signing up in Supabase with:", credentials)
-        response = supabase.auth.sign_up(credentials)
-        print("Supabase response:", response)
-    except Exception as e:
-        print("Exception during Supabase signup:", str(e))
-        raise serializers.ValidationError(f"Supabase signup failed: {str(e)}")
+            print("Signing up in Supabase with:", credentials)
+            response = supabase.auth.sign_up(credentials)
+            print("Supabase response:", response)
+        except Exception as e:
+            print("Exception during Supabase signup:", str(e))
+            raise serializers.ValidationError(f"Supabase signup failed: {str(e)}")
 
-    if not getattr(response, "user", None):
-        print("Supabase signup returned no user")
-        raise serializers.ValidationError("Supabase signup failed")
+        if not getattr(response, "user", None):
+            print("Supabase signup returned no user")
+            raise serializers.ValidationError("Supabase signup failed")
 
-    # Save user in Django DB (inactive until email verification)
-    user = CustomUser.objects.create(
-        email=validated_data["email"],
-        username=validated_data["username"],
-        first_name=validated_data["first_name"],
-        last_name=validated_data["last_name"],
-        is_active=True
-    )
-    user.set_password(validated_data["password"])
-    user.save()
-    return user
-
-
-        # Save user in Django DB (inactive until email verification)
+        # -------------------------
+        # Save user in Django DB
+        # -------------------------
         user = CustomUser.objects.create(
             email=validated_data["email"],
             username=validated_data["username"],
@@ -123,13 +119,10 @@ class AdminPostSerializer(serializers.ModelSerializer):
         fields = ['id', 'author', 'content', 'image_url', 'is_active', 'total_likes', 'total_comments']
 
     def get_total_likes(self, obj):
-        # Replace 'likes' with the related_name from your Post -> Like relationship
         return obj.likes.count() if hasattr(obj, 'likes') else 0
 
     def get_total_comments(self, obj):
-        # Replace 'comments' with the related_name from your Post -> Comment relationship
         return obj.comments.count() if hasattr(obj, 'comments') else 0
-
 
 
 # --------------------------
@@ -139,4 +132,3 @@ class AdminPostUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ['is_active']  # Only allow updating post active status
-
